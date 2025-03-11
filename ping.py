@@ -1,70 +1,27 @@
-# pdf_listener.py
-import http.server
-import socketserver
-from datetime import datetime
-import os
+#!/bin/bash
 
-# Log dosyası yolu
-LOG_DIR = "/root/pdf_pings"
-LOG_FILE = os.path.join(LOG_DIR, "pdf_pings.log")
+# pdf_monitor.sh
+LOG_FILE="/root/pdf_pings/pdf_clicks.log"
+PORT=8765
 
-# Dizin ve log dosyası kontrolü
-def setup_logging():
-    # Dizin yoksa oluştur
-    if not os.path.exists(LOG_DIR):
-        os.makedirs(LOG_DIR)
-    
-    # Log dosyası yoksa oluştur
-    if not os.path.exists(LOG_FILE):
-        open(LOG_FILE, 'a').close()
-    
-    print(f"Log dosyası: {LOG_FILE}")
+# Renk kodları
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-class PingHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        # CORS headerları
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        
-        # Zaman damgası
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        # İstemci IP'si
-        client_ip = self.client_address[0]
-        
-        # Log mesajı
-        log_message = f"[{timestamp}] PDF Açıldı! | IP: {client_ip} | Path: {self.path}\n"
-        
-        # Ekrana yazdır
-        print("\n" + "="*50)
-        print("PDF AÇILDI!")
-        print("="*50)
-        print(log_message)
-        
-        # Dosyaya kaydet
-        try:
-            with open(LOG_FILE, "a") as f:
-                f.write(log_message)
-        except Exception as e:
-            print(f"Log yazma hatası: {e}")
+# Log dizini oluştur
+mkdir -p /root/pdf_pings
 
-def main():
-    # Log sistemi kur
-    setup_logging()
-    
-    # Sunucu ayarları
-    port = 8765
-    handler = PingHandler
-    
-    try:
-        with socketserver.TCPServer(("", port), handler) as httpd:
-            print(f"PDF ping sunucusu başlatıldı - Port: {port}")
-            print(f"Log dosyası: {LOG_FILE}")
-            httpd.serve_forever()
-    except Exception as e:
-        print(f"Sunucu hatası: {e}")
+# Başlık
+clear
+echo -e "${GREEN}=== PDF Ping Monitörü ===${NC}"
+echo -e "${BLUE}Port: ${PORT}${NC}"
+echo -e "${BLUE}Log: ${LOG_FILE}${NC}"
+echo -e "${RED}Ctrl+C ile çıkış${NC}\n"
 
-if __name__ == "__main__":
-    main()
+# Tcpdump ile izle ve logla
+tcpdump -n -i any port $PORT -l -A | while read line; do
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${GREEN}[${TIMESTAMP}]${NC} ${line}" | tee -a $LOG_FILE
+done
